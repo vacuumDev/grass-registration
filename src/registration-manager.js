@@ -93,11 +93,10 @@ class RegistrationManager {
      * @returns {Promise<boolean>} Resolves true on success.
      */
     async sendOtp(email) {
-        const recaptchaToken = await this.solveCaptcha();
-        console.log(recaptchaToken)
-        if (!recaptchaToken) {
-            throw new Error('Failed to solve captcha');
-        }
+        let recaptchaToken = null;
+        do {
+            recaptchaToken = await this.solveCaptcha();
+        } while (!recaptchaToken)
 
         const payload = {
             email,
@@ -297,8 +296,9 @@ class RegistrationManager {
         try {
             const response = await axios.post(`${this.baseUrl}/verifyOtp`, JSON.stringify(payload), axiosConfig);
             if (response.status === 200) {
+                console.log(JSON.stringify(response.data))
                 console.log(`OTP verified for ${email}`);
-                return true;
+                return response.data.result.data.accessToken;
             }
             throw new Error('OTP verification failed');
         } catch (err) {
@@ -326,13 +326,12 @@ class RegistrationManager {
         // Fetch the OTP from the email.
         console.log(`Fetched OTP: ${otp}`);
 
-        // Verify the OTP.
+        let accessToken = null;
         await retry(async () => {
-            const x = await this.verifyOtp(email, otp);
-            console.log(x)
+            accessToken = await this.verifyOtp(email, otp);
         }, { retries: 3, minTimeout: 2000 });
 
-        return true;
+        return accessToken;
     }
 }
 

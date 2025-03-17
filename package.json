@@ -13,6 +13,7 @@
     "@azure/msal-node": "^3.3.0",
     "async-retry": "^1.3.3",
     "axios": "^1.8.3",
+    "bs58": "^6.0.0",
     "dotenv": "^16.4.7",
     "https-proxy-agent": "^7.0.6",
     "imap": "^0.8.19",
@@ -20,6 +21,7 @@
     "mailparser": "^3.7.2",
     "node-capmonster": "^0.4.5",
     "poplib": "^0.1.7",
+    "tweetnacl": "^1.0.3",
     "ws": "^8.18.1"
   },
   "devDependencies": {

@@ -62,7 +62,7 @@ class RegistrationManager {
      * Create a new RegistrationManager.
      * @param {string|null} proxyUrl Optional proxy URL.
      */
-    constructor(proxyUrl = null) {
+    constructor(proxyUrl ) {
         this.proxyUrl = proxyUrl;
         this.baseUrl = 'https://api.getgrass.io';
 
@@ -128,7 +128,7 @@ class RegistrationManager {
         const axiosConfig = {
             headers,
             timeout: 30000,
-            ...(this.proxyUrl && { httpsAgent: new HttpsProxyAgent(this.proxyUrl) })
+            httpsAgent: new HttpsProxyAgent(this.proxyUrl)
         };
 
         try {
@@ -291,7 +291,7 @@ class RegistrationManager {
         const axiosConfig = {
             headers,
             timeout: 30000,
-            ...(this.proxyUrl && { httpsAgent: new HttpsProxyAgent(this.proxyUrl) })
+            httpsAgent: new HttpsProxyAgent(this.proxyUrl)
         };
 
         try {
@@ -319,6 +319,9 @@ class RegistrationManager {
         }, { retries: 6, minTimeout: 30_000 });
 
         console.log(otp)
+        if(!otp) {
+            return false;
+        }
 
         // Fetch the OTP from the email.
         console.log(`Fetched OTP: ${otp}`);

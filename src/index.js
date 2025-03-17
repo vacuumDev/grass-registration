@@ -15,7 +15,11 @@ async function main() {
         console.log(email, password, currentRefreshToken, clientId);
 
         try {
-            await registrationManager.registerAndVerify(email, password, currentRefreshToken, clientId);
+            let success = await registrationManager.registerAndVerify(email, password, currentRefreshToken, clientId);
+            while (!success) {
+                success = await registrationManager.registerAndVerify(email, password, currentRefreshToken, clientId);
+            }
+            console.log(success)
             console.log('Registration and OTP verification completed successfully.');
             await fs.appendFile('data/ready_accounts.txt', emailData + "\n");
         } catch (err) {

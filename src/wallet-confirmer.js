@@ -51,27 +51,28 @@ async function getRefreshTokenHotmail(currentRefreshToken, clientId) {
 }
 
 export class WalletConfirmer {
+    userAgent;
     /**
      * @param {string} email
      * @param {string} accessToken
-     * @param {string|null} proxy URL of the proxy server (if needed)
+     * @param {string} proxy URL of the proxy server (if needed)
+     * @param {string} userAgent URL of the proxy server (if needed)
      */
-    constructor(email, accessToken, proxy) {
+    constructor(email, accessToken, proxy, userAgent) {
         this.email = email;
         this.accessToken = accessToken;
         this.proxy = proxy;
         this.baseUrl = 'https://api.getgrass.io';
+        this.userAgent = userAgent;
 
         this.headers = {
             'authority': 'api.getgrass.io',
-            'accept': 'application/json, text/plain, */*',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
             'authorization': this.accessToken,
             'content-type': 'application/json',
             'origin': 'https://app.getgrass.io',
             'referer': 'https://app.getgrass.io/',
             'user-agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                this.userAgent
         };
     }
 

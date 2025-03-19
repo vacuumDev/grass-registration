@@ -6,13 +6,17 @@ import {GrassWalletLinker} from "./wallet-linker.js";
 import bs58 from "bs58";
 import retry from 'async-retry';
 import nacl from 'tweetnacl';
+import UserAgent from "user-agents";
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 const processAccount = async (emailData) => {
     const proxyUrl = process.env.PROXY;
+    const userAgent = new UserAgent();
 
-    const registrationManager = new RegistrationManager(proxyUrl);
+    console.log(userAgent.toString())
+
+    const registrationManager = new RegistrationManager(proxyUrl, userAgent.toString());
 
     if (!emailData.trim()) return;
 
@@ -36,7 +40,7 @@ const processAccount = async (emailData) => {
             throw new Error('Can not verify otp code');
         }
 
-        const linker = new GrassWalletLinker(accessToken, privateKeyBase58, proxyUrl);
+        const linker = new GrassWalletLinker(accessToken, privateKeyBase58, proxyUrl, userAgent.toString());
         const isSuccess = await linker.linkWallet();
 
         if(!isSuccess) {
@@ -44,7 +48,7 @@ const processAccount = async (emailData) => {
             return;
         }
 
-        const confirmer = new WalletConfirmer(email, accessToken, proxyUrl);
+        const confirmer = new WalletConfirmer(email, accessToken, proxyUrl, userAgent.toString());
         await confirmer.sendApproveLink();
 
         await delay(120_000)

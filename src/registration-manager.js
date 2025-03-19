@@ -61,8 +61,9 @@ class RegistrationManager {
     /**
      * Create a new RegistrationManager.
      * @param {string|null} proxyUrl Optional proxy URL.
+     * @param {string} userAgent Optional proxy URL.
      */
-    constructor(proxyUrl ) {
+    constructor(proxyUrl, userAgent ) {
         this.proxyUrl = proxyUrl;
         this.baseUrl = 'https://api.getgrass.io';
 
@@ -70,6 +71,7 @@ class RegistrationManager {
         this.captchaWebsiteURL = 'https://app.getgrass.io/register';
         this.captchaWebsiteKey = '6LeeT-0pAAAAAFJ5JnCpNcbYCBcAerNHlkK4nm6y';
         this.captchaSolver = new CapMonster.RecaptchaV2Task('3db8c5edae9bb029f324aba64b855658');
+        this.userAgent = userAgent;
     }
 
     /**
@@ -108,20 +110,9 @@ class RegistrationManager {
         };
 
         const headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:136.0) Gecko/20100101 Firefox/136.0',
-            'Accept': '*/*',
-            'Accept-Language': 'ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3',
-            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'User-Agent': this.userAgent,
             'Referer': 'https://app.getgrass.io/',
-            'Content-Type': 'text/plain;charset=UTF-8',
-            'Origin': 'https://app.getgrass.io',
-            'DNT': '1',
-            'Sec-GPC': '1',
-            'Connection': 'keep-alive',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-site',
-            'Priority': 'u=0'
+            'Origin': 'https://app.getgrass.io'
         };
 
         const axiosConfig = {
@@ -271,20 +262,9 @@ class RegistrationManager {
         const payload = { email, otp };
 
         const headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:136.0) Gecko/20100101 Firefox/136.0',
-            'Accept': '*/*',
-            'Accept-Language': 'ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3',
-            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'User-Agent': this.userAgent,
             'Referer': 'https://app.getgrass.io/',
-            'Content-Type': 'text/plain;charset=UTF-8',
-            'Origin': 'https://app.getgrass.io',
-            'DNT': '1',
-            'Sec-GPC': '1',
-            'Connection': 'keep-alive',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-site',
-            'Priority': 'u=0'
+            'Origin': 'https://app.getgrass.io'
         };
 
         const axiosConfig = {

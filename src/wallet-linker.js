@@ -6,33 +6,28 @@ import nacl from 'tweetnacl';
 import { TextEncoder } from 'util';
 
 export class GrassWalletLinker {
+    userAgent;
     /**
      * @param {string} accessToken
      * @param {string} privateKey Приватный ключ в формате base58
-     * @param {string|null} proxy URL прокси-сервера (если требуется)
+     * @param {string} proxy URL прокси-сервера (если требуется)
+     * @param {string} userAgent URL прокси-сервера (если требуется)
      */
-    constructor(accessToken, privateKey, proxy = null) {
+    constructor(accessToken, privateKey, proxy, userAgent) {
         this.accessToken = accessToken;
         this.privateKey = privateKey;
         this.proxy = proxy;
         this.baseUrl = 'https://api.getgrass.io';
+        this.userAgent = userAgent;
 
         this.headers = {
             'authority': 'api.getgrass.io',
-            'accept': 'application/json, text/plain, */*',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
             'authorization': this.accessToken,
             'content-type': 'application/json',
             'origin': 'https://app.getgrass.io',
             'referer': 'https://app.getgrass.io/',
-            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-site',
             'user-agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                this.userAgent
         };
     }
 

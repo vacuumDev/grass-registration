@@ -22,6 +22,7 @@
     "node-capmonster": "^0.4.5",
     "poplib": "^0.1.7",
     "tweetnacl": "^1.0.3",
+    "user-agents": "^1.1.482",
     "ws": "^8.18.1"
   },
   "devDependencies": {

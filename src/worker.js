@@ -80,7 +80,7 @@ const processAccount = async (emailData) => {
             userId: userId
         }));
 
-        await fs.appendFile('data/ready_accounts.txt', emailData + `:${accessToken}:${privateKeyBase58}:${publicKeyBase58}` + "\n");
+        await fs.appendFile('data/ready_accounts.txt', emailData + `:${accessToken}:${userId}:${privateKeyBase58}:${publicKeyBase58}` + "\n");
     } catch (err) {
         console.error('Error during registration and verification:', err.message);
     }

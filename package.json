@@ -21,6 +21,7 @@
     "mailparser": "^3.7.2",
     "node-capmonster": "^0.4.5",
     "poplib": "^0.1.7",
+    "redis": "^4.7.0",
     "tweetnacl": "^1.0.3",
     "user-agents": "^1.1.482",
     "ws": "^8.18.1"

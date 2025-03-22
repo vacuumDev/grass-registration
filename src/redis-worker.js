@@ -7,7 +7,8 @@ class RedisWorker {
             socket: {
                 host: 'localhost',
                 port: 6379
-            }
+            },
+            password: 'fhg384f3h387f383f30h43h84'
         });
 
         client.on("error", (err) => console.error("Redis error:", err));

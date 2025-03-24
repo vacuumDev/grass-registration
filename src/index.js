@@ -7,7 +7,7 @@ async function main() {
         .split('\n')
         .filter(line => line.trim() !== '');
 
-    const batchSize = 5;
+    const batchSize = 3;
     const batches = [];
 
     // Split accounts into batches
@@ -16,33 +16,29 @@ async function main() {
     }
 
     // Create an array of promises that resolve when each worker exits
-    const workerPromises = batches.map((batch, index) => {
-        return new Promise((resolve, reject) => {
-            const worker = fork('./src/worker.js'); // adjust the path if needed
+    for (const [index, batch] of batches.entries()) {
+        await new Promise((resolve, reject) => {
+            const worker = fork('./src/worker.js');
+            console.log(`Starting worker ${index} for ${batch.length} emails`);
 
-            // Send the batch along with an index for logging purposes
             worker.send({ batch, index });
 
-            worker.on('message', (msg) => {
+            worker.on('message', msg => {
                 console.log(`Message from worker ${index}:`, msg);
             });
 
-            worker.on('exit', (code) => {
+            worker.on('exit', code => {
                 console.log(`Worker ${index} exited with code ${code}`);
                 resolve();
             });
 
-            worker.on('error', (error) => {
+            worker.on('error', error => {
                 console.error(`Worker ${index} encountered an error:`, error);
-                reject(error);
             });
         });
-    });
+    }
 
-    // Wait for all workers to finish processing
-    await Promise.all(workerPromises);
     console.log("All workers have finished processing.");
-
     process.exit(0);
 }
 

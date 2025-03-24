@@ -14,34 +14,58 @@ import RedisWorker from "./redis-worker.js";
 // Helper delay function
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+function getRandomInterval(minMs, maxMs) {
+    return Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+}
+
+function generateRandom12Hex() {
+    let hex = '';
+    for (let i = 0; i < 12; i++) {
+        hex += Math.floor(Math.random() * 16).toString(16);
+    }
+    return hex;
+}
+
+
 const processAccount = async (emailData) => {
-    const proxyUrl = process.env.PROXY;
-    const userAgent = new UserAgent();
+    if (!emailData.trim()) return;
+
+    let [email, password, currentRefreshToken, clientId] = emailData.split(':');
+
+    const existingSession = await RedisWorker.getSession(email);
+    if (existingSession) {
+        console.log(`Skipping ${email} — session already exists.`);
+        return;
+    }
+
+    const proxyUrl = process.env.PROXY.replace('{ID}', generateRandom12Hex());
+
+    const userAgent = new UserAgent({ deviceCategory: 'desktop' });
 
     console.log(userAgent.toString());
 
     const registrationManager = new RegistrationManager(proxyUrl, userAgent.toString());
 
-    if (!emailData.trim()) return;
-
     const keyPair = nacl.sign.keyPair();
     const privateKey = keyPair.secretKey;
     const privateKeyBase58 = bs58.encode(privateKey);
     const publicKeyBase58 = bs58.encode(keyPair.publicKey);
-    const [email, password, currentRefreshToken, clientId] = emailData.split(':');
 
     try {
         let count = 0;
+        await delay(getRandomInterval(1_000, 60_000))
         let accessToken = await registrationManager.registerAndVerify(email, password, currentRefreshToken, clientId);
         while (!accessToken && count < 3) {
             count++;
+            await delay(getRandomInterval(1_000, 60_000))
             accessToken = await registrationManager.registerAndVerify(email, password, currentRefreshToken, clientId);
         }
         if (!accessToken) {
-            throw new Error('Can not verify otp code');
+            console.error(`Can not verify otp code for ${email} restart app`);
         }
 
         const linker = new GrassWalletLinker(accessToken, privateKeyBase58, proxyUrl, userAgent.toString());
+        await delay(getRandomInterval(1_000, 60_000))
         const isSuccess = await linker.linkWallet();
 
         if (!isSuccess) {
@@ -50,19 +74,24 @@ const processAccount = async (emailData) => {
         }
 
         const confirmer = new WalletConfirmer(email, accessToken, proxyUrl, userAgent.toString());
+        await delay(getRandomInterval(1_000, 60_000))
         await confirmer.sendApproveLink();
 
         await delay(120_000);
 
+        await delay(getRandomInterval(1_000, 60_000))
         let token = null;
         await retry(async () => {
+            await delay(getRandomInterval(1_000, 60_000))
             token = await confirmer.getConfirmationTokenFromEmail(currentRefreshToken, clientId);
         }, { retries: 6, minTimeout: 30_000 });
 
         token = token.replaceAll('3D', '').replaceAll('=\r\n', '');
+        await delay(getRandomInterval(1_000, 60_000))
         await confirmer.confirmWallet(token);
 
         console.log('Registration and OTP verification completed successfully.');
+        await delay(getRandomInterval(1_000, 60_000))
 
         const res = await axios.get("https://api.getgrass.io/retrieveUser", {
             headers: {
@@ -80,7 +109,7 @@ const processAccount = async (emailData) => {
             userId: userId
         }));
 
-        await fs.appendFile('data/ready_accounts.txt', emailData + `:${accessToken}:${userId}:${privateKeyBase58}:${publicKeyBase58}` + "\n");
+        await fs.appendFile('data/ready_accounts.txt', emailData.split(':').join('|') + `|${proxyUrl}|${accessToken}|${userId}|${userAgent.toString()}|${privateKeyBase58}|${publicKeyBase58}` + "\n");
     } catch (err) {
         console.error('Error during registration and verification:', err.message);
     }

@@ -54,6 +54,8 @@ const processAccount = async (emailData) => {
     const minDelay = Number(process.env.MIN_DELAY);
     const maxDelay = Number(process.env.MAX_DELAY);
 
+    await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)))
+
     const userAgent = new UserAgent({ deviceCategory: 'desktop' });
 
     console.log(userAgent.toString());

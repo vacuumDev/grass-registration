@@ -46,8 +46,6 @@ async function main() {
                 console.error(`Worker ${index} encountered an error:`, error);
             });
         });
-
-        await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)))
     }
 
     console.log("All workers have finished processing.");

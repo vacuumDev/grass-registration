@@ -9,15 +9,12 @@ function getRandomInterval(minMs, maxMs) {
 }
 async function main() {
 
-    const minDelay = Number(process.env.MIN_DELAY);
-    const maxDelay = Number(process.env.MAX_DELAY);
-
     // Read and filter email accounts from file
     const emailsData = (await fs.readFile('data/emails.txt', 'utf-8'))
         .split('\n')
         .filter(line => line.trim() !== '');
 
-    const batchSize = 1;
+    const batchSize = 50;
     const batches = [];
 
     // Split accounts into batches

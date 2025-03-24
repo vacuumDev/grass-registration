@@ -17,7 +17,6 @@ async function getRefreshTokenHotmail(currentRefreshToken, clientId) {
     };
 
     // If a proxy is provided, set the Axios proxy configuration.
-    // Expect proxy to be an object like { host: '127.0.0.1', port: 9000 }.
     if (proxy) {
         axiosConfig.httpsAgent = new HttpsProxyAgent(proxy);
     }
@@ -70,7 +69,7 @@ class RegistrationManager {
         // Captcha settings (update the API key as needed)
         this.captchaWebsiteURL = 'https://app.getgrass.io/register';
         this.captchaWebsiteKey = '6LeeT-0pAAAAAFJ5JnCpNcbYCBcAerNHlkK4nm6y';
-        this.captchaSolver = new CapMonster.RecaptchaV2Task('3db8c5edae9bb029f324aba64b855658');
+        this.captchaSolver = new CapMonster.RecaptchaV2Task(process.env.CAPMONSTER_KEY);
         this.userAgent = userAgent;
     }
 

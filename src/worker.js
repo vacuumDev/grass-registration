@@ -15,6 +15,9 @@ import * as crypto from "crypto";
 // Helper delay function
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+const minDelay = Number(process.env.MIN_DELAY);
+const maxDelay = Number(process.env.MAX_DELAY);
+
 function getRandomInterval(minMs, maxMs) {
     return Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
 }
@@ -50,11 +53,6 @@ const processAccount = async (emailData) => {
     }
 
     const proxyUrl = process.env.PROXY.replace('{ID}', generateRandom12Hex());
-
-    const minDelay = Number(process.env.MIN_DELAY);
-    const maxDelay = Number(process.env.MAX_DELAY);
-
-    await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)))
 
     const userAgent = new UserAgent({ deviceCategory: 'desktop' });
 
@@ -138,7 +136,14 @@ const processAccount = async (emailData) => {
 // Process an entire batch concurrently
 async function processBatch(batch) {
     await RedisWorker.init();
-    await Promise.all(batch.map(emailData => processAccount(emailData)));
+
+    const promises = [];
+    for (const emailData of batch) {
+        promises.push(processAccount(emailData));
+
+        await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)))
+    }
+    await Promise.all(promises);
 }
 
 // Listen for message from parent process to start processing

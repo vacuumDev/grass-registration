@@ -10,6 +10,7 @@ import UserAgent from "user-agents";
 import axios from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import RedisWorker from "./redis-worker.js";
+import * as crypto from "crypto";
 
 // Helper delay function
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -24,6 +25,16 @@ function generateRandom12Hex() {
         hex += Math.floor(Math.random() * 16).toString(16);
     }
     return hex;
+}
+
+function generatePassword(length) {
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+        const idx = crypto.randomInt(0, charset.length);
+        password += charset[idx];
+    }
+    return password;
 }
 
 
@@ -91,8 +102,12 @@ const processAccount = async (emailData) => {
         await confirmer.confirmWallet(token);
 
         console.log('Registration and OTP verification completed successfully.');
-        await delay(getRandomInterval(1_000, 60_000))
+        await delay(getRandomInterval(1_000, 60_000));
 
+        const accPassword = generatePassword(10);
+
+        await registrationManager.resetPassword(accessToken, accPassword)
+        await delay(getRandomInterval(1_000, 60_000));
         const res = await axios.get("https://api.getgrass.io/retrieveUser", {
             headers: {
                 Authorization: accessToken,
@@ -109,7 +124,7 @@ const processAccount = async (emailData) => {
             userId: userId
         }));
 
-        await fs.appendFile('data/ready_accounts.txt', emailData.split(':').join('|') + `|${proxyUrl}|${accessToken}|${userId}|${userAgent.toString()}|${privateKeyBase58}|${publicKeyBase58}` + "\n");
+        await fs.appendFile('data/ready_accounts.txt', emailData.split(':').join('|') + `|${accPassword}|${proxyUrl}|${accessToken}|${userId}|${userAgent.toString()}|${privateKeyBase58}|${publicKeyBase58}` + "\n");
     } catch (err) {
         console.error('Error during registration and verification:', err.message);
     }

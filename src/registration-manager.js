@@ -313,6 +313,35 @@ class RegistrationManager {
 
         return accessToken;
     }
+
+    async resetPassword(accessToken, newPassword) {
+        const url = `${this.baseUrl}/resetPassword`;
+        const payload = { password: newPassword };
+
+        const headers = {
+            'Authorization': accessToken,
+            'Accept': 'application/json, text/plain, */*',
+            'Content-Type': 'application/json',
+            'Origin': 'https://app.getgrass.io',
+            'Referer': 'https://app.getgrass.io/',
+            'User-Agent': this.userAgent
+        };
+
+        const axiosConfig = {
+            headers,
+            timeout: 30000,
+            httpsAgent: this.proxyUrl ? new HttpsProxyAgent(this.proxyUrl) : undefined
+        };
+
+        try {
+            const response = await axios.post(url, payload, axiosConfig);
+            console.log('resetPassword response →', response.data);
+            return response.data;
+        } catch (err) {
+            console.error('resetPassword error →', err.response?.data || err.message);
+            throw err;
+        }
+    }
 }
 
 export default RegistrationManager;

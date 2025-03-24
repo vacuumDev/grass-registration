@@ -51,6 +51,9 @@ const processAccount = async (emailData) => {
 
     const proxyUrl = process.env.PROXY.replace('{ID}', generateRandom12Hex());
 
+    const minDelay = Number(process.env.MIN_DELAY);
+    const maxDelay = Number(process.env.MAX_DELAY);
+
     const userAgent = new UserAgent({ deviceCategory: 'desktop' });
 
     console.log(userAgent.toString());
@@ -64,11 +67,11 @@ const processAccount = async (emailData) => {
 
     try {
         let count = 0;
-        await delay(getRandomInterval(1_000, 60_000))
+        await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)))
         let accessToken = await registrationManager.registerAndVerify(email, password, currentRefreshToken, clientId);
         while (!accessToken && count < 3) {
             count++;
-            await delay(getRandomInterval(1_000, 60_000))
+            await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)))
             accessToken = await registrationManager.registerAndVerify(email, password, currentRefreshToken, clientId);
         }
         if (!accessToken) {
@@ -76,7 +79,7 @@ const processAccount = async (emailData) => {
         }
 
         const linker = new GrassWalletLinker(accessToken, privateKeyBase58, proxyUrl, userAgent.toString());
-        await delay(getRandomInterval(1_000, 60_000))
+        await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)))
         const isSuccess = await linker.linkWallet();
 
         if (!isSuccess) {
@@ -85,29 +88,29 @@ const processAccount = async (emailData) => {
         }
 
         const confirmer = new WalletConfirmer(email, accessToken, proxyUrl, userAgent.toString());
-        await delay(getRandomInterval(1_000, 60_000))
+        await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)))
         await confirmer.sendApproveLink();
 
         await delay(120_000);
 
-        await delay(getRandomInterval(1_000, 60_000))
+        await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)))
         let token = null;
         await retry(async () => {
-            await delay(getRandomInterval(1_000, 60_000))
+            await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)))
             token = await confirmer.getConfirmationTokenFromEmail(currentRefreshToken, clientId);
         }, { retries: 6, minTimeout: 30_000 });
 
         token = token.replaceAll('3D', '').replaceAll('=\r\n', '');
-        await delay(getRandomInterval(1_000, 60_000))
+        await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)))
         await confirmer.confirmWallet(token);
 
         console.log('Registration and OTP verification completed successfully.');
-        await delay(getRandomInterval(1_000, 60_000));
+        await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)));
 
         const accPassword = generatePassword(10);
 
         await registrationManager.resetPassword(accessToken, accPassword)
-        await delay(getRandomInterval(1_000, 60_000));
+        await delay(getRandomInterval(Math.floor(minDelay * 1000), Math.floor(maxDelay * 1000)));
         const res = await axios.get("https://api.getgrass.io/retrieveUser", {
             headers: {
                 Authorization: accessToken,

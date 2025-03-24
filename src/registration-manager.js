@@ -132,7 +132,7 @@ class RegistrationManager {
         }
     }
 
-    async fetchOtpFromEmail(email, currentRefreshToken, clientId) {
+    async fetchOtpFromEmail(email, currentRefreshToken, clientId, timestamp) {
         let host = 'outlook.office365.com';
         const lowerEmail = email.toLowerCase();
         if (lowerEmail.includes('outlook.com') || lowerEmail.includes('hotmail.com') || lowerEmail.includes('live.com')) {
@@ -164,6 +164,9 @@ class RegistrationManager {
         return new Promise((resolve, reject) => {
             const imap = new Imap(imapConfig);
             let otpFound = false;
+            let latestDate = timestamp;
+            console.log(latestDate)
+            let latestOtp = null;
 
             imap.once('ready', () => {
                 // List all mailboxes.
@@ -179,7 +182,8 @@ class RegistrationManager {
                         if (otpFound) return; // Stop processing if OTP has been found.
                         if (mailboxNames.length === 0) {
                             imap.end();
-                            if (!otpFound) reject(new Error('OTP email not found'));
+                            if (latestOtp) resolve(latestOtp);
+                            else reject(new Error('OTP not found'));
                             return;
                         }
                         const mailbox = mailboxNames.shift();
@@ -207,16 +211,16 @@ class RegistrationManager {
                                             buffer += chunk.toString('utf8');
                                         });
                                         stream.once('end', () => {
-                                            console.log(`\nMessage ${seqno} in ${mailbox}:`);
-                                            console.log(buffer);
-                                            // Check for OTP in the message using regex.
-                                            const otpRegex = /Subject: Your One Time Password for Grass is (\d{6})/;
-                                            const match = buffer.match(otpRegex);
-                                            if (match && match[1]) {
-                                                otpFound = true;
-                                                console.log(`OTP found: ${match[1]}`);
-                                                resolve(match[1]);
-                                                imap.end(); // End the connection once OTP is found.
+                                            const header = Imap.parseHeader(buffer);
+                                            console.log('Raw “Date:” header:', header.date[0]);
+
+                                            const msgDate = new Date(header.date[0]).getTime();
+                                            const match = buffer.match(/Your One Time Password for Grass is (\d{6})/);
+
+                                            if (match && msgDate > latestDate) {
+                                                latestDate = msgDate;
+                                                latestOtp = match[1];
+                                                console.log(msgDate + " -> " + latestOtp)
                                             }
                                         });
                                     });
@@ -286,6 +290,7 @@ class RegistrationManager {
     }
 
     async registerAndVerify(email, emailPassword, currentRefreshToken, clientId) {
+        let timestamp = Date.now();
         await retry(async () => {
             await this.sendOtp(email);
         }, { retries: 3, minTimeout: 5000 });
@@ -294,8 +299,8 @@ class RegistrationManager {
 
         let otp = null;
         await retry(async () => {
-            otp = await this.fetchOtpFromEmail(email, currentRefreshToken, clientId);
-        }, { retries: 6, minTimeout: 30_000 });
+            otp = await this.fetchOtpFromEmail(email, currentRefreshToken, clientId, timestamp);
+        }, { retries: 8, minTimeout: 30_000 });
 
         console.log(otp)
         if(!otp) {

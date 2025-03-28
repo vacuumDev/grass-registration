@@ -8,6 +8,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "type": "module",
   "description": "",
   "dependencies": {
     "@azure/msal-node": "^3.3.0",

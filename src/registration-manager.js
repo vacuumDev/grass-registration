@@ -4,6 +4,7 @@ import Imap from "imap";
 import retry from "async-retry";
 import CapMonster from "node-capmonster";
 import { getRefreshTokenHotmail } from "./helper.js";
+import EmailHandler from "./email-handler.js";
 
 axios.interceptors.request.use(
   (config) => {
@@ -119,137 +120,6 @@ class RegistrationManager {
     }
   }
 
-  async fetchOtpFromEmail(email, currentRefreshToken, clientId, timestamp) {
-    let host = "outlook.office365.com";
-    const lowerEmail = email.toLowerCase();
-    if (
-      lowerEmail.includes("outlook.com") ||
-      lowerEmail.includes("hotmail.com") ||
-      lowerEmail.includes("live.com")
-    ) {
-      host = "outlook.office365.com";
-    }
-
-    const token = await getRefreshTokenHotmail(currentRefreshToken, clientId);
-    console.log("OAuth Token:", token);
-    const base64Encoded = Buffer.from(
-      [`user=${email}`, `auth=Bearer ${token}`, "", ""].join("\x01"),
-      "utf-8",
-    ).toString("base64");
-
-    const imapConfig = {
-      xoauth2: base64Encoded,
-      host: host,
-      port: 993,
-      tls: true,
-      authTimeout: 25000,
-      connTimeout: 30000,
-      tlsOptions: {
-        rejectUnauthorized: false,
-        servername: host,
-      },
-    };
-
-    console.log("IMAP Config:", imapConfig);
-
-    return new Promise((resolve, reject) => {
-      const imap = new Imap(imapConfig);
-      let otpFound = false;
-      let latestDate = timestamp;
-      let latestOtp = null;
-
-      imap.once("ready", () => {
-        // List all mailboxes.
-        imap.getBoxes((err, boxes) => {
-          if (err) {
-            imap.end();
-            return reject(err);
-          }
-          console.log("Mailboxes:", boxes);
-
-          // Function to process each mailbox.
-          const processMailbox = (mailboxNames) => {
-            if (otpFound) return; // Stop processing if OTP has been found.
-            if (mailboxNames.length === 0) {
-              imap.end();
-              if (latestOtp) resolve(latestOtp);
-              else reject(new Error("OTP not found"));
-              return;
-            }
-            const mailbox = mailboxNames.shift();
-            console.log(`\nOpening mailbox: ${mailbox}`);
-            imap.openBox(mailbox, true, (err, box) => {
-              if (err) {
-                console.error(`Error opening mailbox ${mailbox}:`, err);
-                return processMailbox(mailboxNames);
-              }
-              // Search for all messages in this mailbox.
-              imap.search(["ALL"], (err, results) => {
-                if (err) {
-                  console.error(`Search error in mailbox ${mailbox}:`, err);
-                  return processMailbox(mailboxNames);
-                }
-                console.log(
-                  `Found ${results.length} messages in mailbox ${mailbox}`,
-                );
-                if (!results || results.length === 0) {
-                  return processMailbox(mailboxNames);
-                }
-                const fetcher = imap.fetch(results, { bodies: "" });
-                fetcher.on("message", (msg, seqno) => {
-                  let buffer = "";
-                  msg.on("body", (stream) => {
-                    stream.on("data", (chunk) => {
-                      buffer += chunk.toString("utf8");
-                    });
-                    stream.once("end", () => {
-                      const header = Imap.parseHeader(buffer);
-                      console.log("Raw “Date:” header:", header.date[0]);
-
-                      const msgDate = new Date(header.date[0]).getTime();
-                      const match = buffer.match(
-                        /Your One Time Password for Grass is (\d{6})/,
-                      );
-
-                      if (match && msgDate > latestDate) {
-                        latestDate = msgDate;
-                        latestOtp = match[1];
-                        console.log(msgDate + " -> " + latestOtp);
-                      }
-                    });
-                  });
-                  msg.once("error", (err) => {
-                    console.error(`Error processing message ${seqno}:`, err);
-                  });
-                });
-                fetcher.once("error", (err) => {
-                  console.error("Fetch error:", err);
-                });
-                fetcher.once("end", () => {
-                  // Process the next mailbox.
-                  processMailbox(mailboxNames);
-                });
-              });
-            });
-          };
-
-          // Extract top-level mailbox names.
-          const mailboxNames = Object.keys(boxes);
-          processMailbox(mailboxNames);
-        });
-      });
-
-      imap.once("error", (err) => {
-        reject(err);
-      });
-      imap.once("end", () => {
-        console.log("Connection ended");
-        resolve(null);
-      });
-      imap.connect();
-    });
-  }
-
   /**
    * Verifies the OTP code.
    * @param {string} email
@@ -302,10 +172,11 @@ class RegistrationManager {
     let otp = null;
     await retry(
       async () => {
-        otp = await this.fetchOtpFromEmail(
+        otp = await EmailHandler.fetchOtpFromEmail(
           email,
           currentRefreshToken,
           clientId,
+          /Your One Time Password for Grass is (\d{6})/,
           timestamp,
         );
       },

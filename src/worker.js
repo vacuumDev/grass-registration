@@ -17,6 +17,7 @@ import {
   getRandomElement,
   delay,
 } from "./helper.js";
+import EmailHandler from "./email-handler.js";
 
 const countries = process.env.COUNTRIES.split(",");
 
@@ -111,6 +112,9 @@ const processAccount = async (emailData, index) => {
       proxyUrl,
       userAgent.toString(),
     );
+
+    const timestamp = Date.now();
+
     await delay(getRandomInterval(minDelay, maxDelay));
     await confirmer.sendApproveLink();
 
@@ -121,9 +125,12 @@ const processAccount = async (emailData, index) => {
     await retry(
       async () => {
         await delay(getRandomInterval(minDelay, maxDelay));
-        token = await confirmer.getConfirmationTokenFromEmail(
-          currentRefreshToken,
-          clientId,
+        token = await EmailHandler.fetchOtpFromEmail(
+            email,
+            currentRefreshToken,
+            clientId,
+            /token=([^"]+)/,
+            timestamp,
         );
       },
       { retries: 6, minTimeout: 30_000 },

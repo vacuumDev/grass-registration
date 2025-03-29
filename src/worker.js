@@ -37,6 +37,7 @@ async function getValidProxy(country) {
         .replace("{ID}", generateRandom12Hex())
         .replace("{COUNTRY}", country);
 
+    console.log(proxyUrl)
     try {
       const agent = new HttpsProxyAgent(proxyUrl);
       await axios.get("https://api.ipify.org?format=json", {
@@ -268,6 +269,8 @@ async function processAccount(emailData, index) {
     country = getRandomElement(countries);
   }
 
+  country = country.toLowerCase();
+
   // Собираем все данные об аккаунте в единый объект
   let accountData = {
     step: 0, // с какого шага начинаем (если нужно восстанавливать, можно подставить другое)
@@ -313,7 +316,6 @@ async function processAccount(emailData, index) {
         console.log(`Шаг 2: Привязка кошелька для ${accountData.email}`);
         stepDone = await stepLinkWallet(accountData);
         if (stepDone) accountData.step = 3;
-        else accountData.step = 5;
         break;
       }
       case 3: {
@@ -398,7 +400,7 @@ async function processBatch(batch, index) {
   const promises = [];
   for (let i = 0; i < batch.length; i++) {
     const emailData = batch[i];
-    promises.push(processAccount(emailData, index));
+    promises.push(processAccount(emailData, i));
     // Между аккаунтами тоже делаем рандомную задержку
     await delay(getRandomInterval(minDelay, maxDelay));
   }

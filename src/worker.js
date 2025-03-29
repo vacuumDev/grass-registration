@@ -53,7 +53,7 @@ async function getValidProxy(country) {
     }
   }
   // Если не нашли валидный прокси
-  throw new Error("Не удалось подобрать валидный прокси");
+  return false;
 }
 
 /**
@@ -290,6 +290,11 @@ async function processAccount(emailData, index) {
   };
 
   accountData.proxyUrl = await getValidProxy(accountData.country);
+
+  if(!accountData.proxyUrl) {
+    console.error(`Не смогли подобрать прокси для ${email}`)
+    return;
+  }
 
   // Лимит попыток, чтобы не было бесконечных циклов при какой-то постоянной ошибке
   let totalAttempts = 0;

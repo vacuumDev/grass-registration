@@ -313,6 +313,7 @@ async function processAccount(emailData, index) {
         console.log(`Шаг 2: Привязка кошелька для ${accountData.email}`);
         stepDone = await stepLinkWallet(accountData);
         if (stepDone) accountData.step = 3;
+        else accountData.step = 5;
         break;
       }
       case 3: {

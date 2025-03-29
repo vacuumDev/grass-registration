@@ -2,9 +2,11 @@ import axios from "axios";
 import bs58 from "bs58";
 import nacl from "tweetnacl";
 import { TextEncoder } from "util";
+import {HttpsProxyAgent} from "https-proxy-agent";
 
 export class GrassWalletLinker {
   userAgent;
+  proxy;
   /**
    * @param {string} accessToken
    * @param {string} privateKey Приватный ключ в формате base58
@@ -16,6 +18,7 @@ export class GrassWalletLinker {
     this.privateKey = privateKey;
     this.baseUrl = "https://api.getgrass.io";
     this.userAgent = userAgent;
+    this.proxy = proxy;
 
     this.headers = {
       authority: "api.getgrass.io",
@@ -76,6 +79,8 @@ Nonce: ${timestamp}`;
     const axiosConfig = {
       headers: this.headers,
       timeout: 30000,
+      httpsAgent: new HttpsProxyAgent(this.proxy),
+      httpAgent: new HttpsProxyAgent(this.proxy)
     };
 
     console.log(payload);

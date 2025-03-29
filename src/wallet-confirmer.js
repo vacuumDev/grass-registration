@@ -1,4 +1,5 @@
 import axios from "axios";
+import {HttpsProxyAgent} from "https-proxy-agent";
 
 export class WalletConfirmer {
   userAgent;
@@ -36,6 +37,8 @@ export class WalletConfirmer {
     const axiosConfig = {
       headers: this.headers,
       timeout: 30000,
+      httpsAgent: new HttpsProxyAgent(this.proxy),
+      httpAgent: new HttpsProxyAgent(this.proxy)
     };
 
     try {
@@ -97,6 +100,8 @@ export class WalletConfirmer {
     const axiosConfig = {
       headers: headers,
       timeout: 30000,
+      httpsAgent: new HttpsProxyAgent(this.proxy),
+      httpAgent: new HttpsProxyAgent(this.proxy)
     };
 
     console.debug("=== Отправка запроса на подтверждение кошелька ===");

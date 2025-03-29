@@ -27,7 +27,6 @@ class EmailHandler {
         try {
             const response = await axios.post(url, postData, axiosConfig);
             refreshToken = response.data.access_token;
-            console.debug(`Access token retrieved: ${refreshToken}`);
         } catch (error) {
             console.error(`Error during first token request: ${error}`);
 
@@ -84,7 +83,6 @@ class EmailHandler {
             currentRefreshToken,
             clientId,
         );
-        console.log("OAuth Token:", token);
 
         // Build xoauth2 string.
         const base64Encoded = Buffer.from(
@@ -106,8 +104,6 @@ class EmailHandler {
             },
         };
 
-        console.log("IMAP Config:", imapConfig);
-
         return new Promise((resolve, reject) => {
             const imap = new Imap(imapConfig);
             let latestDate = timestamp; // We'll only consider messages newer than this.
@@ -119,7 +115,6 @@ class EmailHandler {
                         imap.end();
                         return reject(err);
                     }
-                    console.log("Mailboxes:", boxes);
 
                     // Gather top-level mailboxes into an array for iteration.
                     const mailboxNames = Object.keys(boxes);
@@ -134,7 +129,6 @@ class EmailHandler {
                         }
 
                         const mailbox = names.shift();
-                        console.log(`\nOpening mailbox: ${mailbox}`);
 
                         imap.openBox(mailbox, true, (openErr, box) => {
                             if (openErr) {
@@ -148,10 +142,6 @@ class EmailHandler {
                                     console.error(`Search error in mailbox ${mailbox}:`, searchErr);
                                     return processMailbox(names);
                                 }
-
-                                console.log(
-                                    `Found ${results.length} messages in mailbox ${mailbox}`,
-                                );
 
                                 if (!results || !results.length) {
                                     return processMailbox(names);

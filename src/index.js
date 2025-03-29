@@ -8,7 +8,7 @@ async function main() {
     .split("\n")
     .filter((line) => line.trim() !== "");
 
-  const batchSize = 1;
+  const batchSize = 5;
   const batches = [];
 
   // Split accounts into batches

@@ -283,13 +283,10 @@ async function processAccount(emailData, index) {
     accessToken: null,
     finalPassword: null,
     userId: null,
-    registrationManager: null,
+    registrationManager: null
   };
 
   accountData.proxyUrl = await getValidProxy(accountData.country);
-
-  axios.defaults.httpAgent = new HttpsProxyAgent(accountData.proxyUrl);
-  axios.defaults.httpsAgent = new HttpsProxyAgent(accountData.proxyUrl);
 
   // Лимит попыток, чтобы не было бесконечных циклов при какой-то постоянной ошибке
   let totalAttempts = 0;
@@ -376,7 +373,9 @@ async function processAccount(emailData, index) {
         break;
     }
 
-    if (!stepDone && accountData.step !== 6) {
+    if(accountData.step === 6) break;
+
+    if (!stepDone) {
       console.log(`Шаг ${accountData.step} неудачен, пробуем ещё раз...`);
       await delay(getRandomInterval(minDelay, maxDelay));
     }
@@ -395,12 +394,15 @@ async function processAccount(emailData, index) {
 async function processBatch(batch, index) {
   await RedisWorker.init();
 
+  const promises = [];
   for (let i = 0; i < batch.length; i++) {
     const emailData = batch[i];
-    await processAccount(emailData, index);
+    promises.push(processAccount(emailData, index));
     // Между аккаунтами тоже делаем рандомную задержку
     await delay(getRandomInterval(minDelay, maxDelay));
   }
+
+  await Promise.all(promises);
 }
 
 // Слушаем сообщения от parent process (cluster/fork)

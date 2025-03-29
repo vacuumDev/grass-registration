@@ -3,6 +3,8 @@ import axios from "axios";
 import retry from "async-retry";
 import CapMonster from "node-capmonster";
 import EmailHandler from "./email-handler.js";
+import {HttpsProxyAgent} from "https-proxy-agent";
+import {delay} from "./helper.js";
 
 axios.interceptors.request.use(
   (config) => {
@@ -33,9 +35,8 @@ axios.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 class RegistrationManager {
+  proxy;
   /**
    * Create a new RegistrationManager.
    * @param {string|null} proxyUrl Optional proxy URL.
@@ -43,6 +44,7 @@ class RegistrationManager {
    */
   constructor(proxyUrl, userAgent) {
     this.baseUrl = "https://api.getgrass.io";
+    this.proxy = proxyUrl;
 
     // Captcha settings (update the API key as needed)
     this.captchaWebsiteURL = "https://app.getgrass.io/register";
@@ -63,7 +65,12 @@ class RegistrationManager {
         this.captchaWebsiteURL,
         this.captchaWebsiteKey,
       );
-      const result = await this.captchaSolver.getTaskResult(taskId);
+      let result = await this.captchaSolver.getTaskResult(taskId);
+      while (result === null) {
+        result = await this.captchaSolver.getTaskResult(taskId);
+        await delay(1_000);
+      }
+
       return result.gRecaptchaResponse;
     } catch (error) {
       console.error("Error solving captcha:", error.message);
@@ -100,6 +107,8 @@ class RegistrationManager {
     const axiosConfig = {
       headers,
       timeout: 30000,
+      httpsAgent: new HttpsProxyAgent(this.proxy),
+      httpAgent: new HttpsProxyAgent(this.proxy)
     };
 
     try {
@@ -136,6 +145,8 @@ class RegistrationManager {
     const axiosConfig = {
       headers,
       timeout: 30000,
+      httpsAgent: new HttpsProxyAgent(this.proxy),
+      httpAgent: new HttpsProxyAgent(this.proxy)
     };
 
     try {
@@ -176,7 +187,7 @@ class RegistrationManager {
           timestamp,
         );
       },
-      { retries: 8, minTimeout: 30_000 },
+      { retries: 4, minTimeout: 30_000 },
     );
 
     console.log(otp);
@@ -214,6 +225,8 @@ class RegistrationManager {
     const axiosConfig = {
       headers,
       timeout: 30000,
+      httpsAgent: new HttpsProxyAgent(this.proxy),
+      httpAgent: new HttpsProxyAgent(this.proxy)
     };
 
     try {

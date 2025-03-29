@@ -346,7 +346,7 @@ async function processAccount(emailData, index) {
         );
 
         const lineToAppend =
-            [
+            ([
               accountData.email,
               accountData.password,
               accountData.currentRefreshToken,
@@ -362,7 +362,7 @@ async function processAccount(emailData, index) {
               accountData.privateKeyBase58,
               accountData.publicKeyBase58,
               rotatingProxy,
-            ].join("|") +
+            ].join("|")) +
             "\n";
 
         await fs.appendFile("data/ready_accounts.txt", lineToAppend);

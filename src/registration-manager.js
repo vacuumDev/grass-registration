@@ -1,9 +1,7 @@
 import "dotenv/config";
 import axios from "axios";
-import Imap from "imap";
 import retry from "async-retry";
 import CapMonster from "node-capmonster";
-import { getRefreshTokenHotmail } from "./helper.js";
 import EmailHandler from "./email-handler.js";
 
 axios.interceptors.request.use(
@@ -166,8 +164,6 @@ class RegistrationManager {
       },
       { retries: 3, minTimeout: 5000 },
     );
-
-    await delay(120_000);
 
     let otp = null;
     await retry(

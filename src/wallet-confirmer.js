@@ -1,6 +1,4 @@
 import axios from "axios";
-import Imap from "imap";
-import { getRefreshTokenHotmail } from "./helper.js";
 
 export class WalletConfirmer {
   userAgent;

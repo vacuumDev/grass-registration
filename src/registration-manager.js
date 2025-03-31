@@ -5,6 +5,7 @@ import CapMonster from "node-capmonster";
 import EmailHandler from "./email-handler.js";
 import {HttpsProxyAgent} from "https-proxy-agent";
 import {delay} from "./helper.js";
+import {CAPMONSTER_KEY} from "./config.js";
 
 axios.interceptors.request.use(
   (config) => {
@@ -50,7 +51,7 @@ class RegistrationManager {
     this.captchaWebsiteURL = "https://app.getgrass.io/register";
     this.captchaWebsiteKey = "6LeeT-0pAAAAAFJ5JnCpNcbYCBcAerNHlkK4nm6y";
     this.captchaSolver = new CapMonster.RecaptchaV2Task(
-      process.env.CAPMONSTER_KEY,
+        CAPMONSTER_KEY,
     );
     this.userAgent = userAgent;
   }

@@ -105,9 +105,6 @@ export class WalletConfirmer {
     };
 
     console.debug("=== Отправка запроса на подтверждение кошелька ===");
-    console.debug(`URL: ${url}`);
-    console.debug(`Headers: ${JSON.stringify(headers, null, 2)}`);
-    console.debug(`Proxy: ${this.proxy}`);
 
     try {
       const response = await axios.post(url, {}, axiosConfig);

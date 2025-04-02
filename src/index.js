@@ -373,6 +373,7 @@ async function processAccount(emailData, index) {
             ].join("|")) +
             "\n";
 
+        console.log(lineToAppend)
         await fs.appendFile("data/ready_accounts.txt", lineToAppend);
         accountData.step = 6; // Успешно закончили все шаги
         break;

@@ -67,7 +67,7 @@ class EmailHandler {
      * @returns {Promise<string|null>} The first matching OTP code found, or null if not found.
      */
     static async fetchOtpFromEmail(email, currentRefreshToken, clientId, regex, timestamp) {
-        // Determine host based on domain.
+        // Определяем хост в зависимости от домена.
         let host = "outlook.office365.com";
         const lowerEmail = email.toLowerCase();
         if (
@@ -78,19 +78,19 @@ class EmailHandler {
             host = "outlook.office365.com";
         }
 
-        // Get the access token from your refresh token.
+        // Получаем токен доступа по refresh-токену.
         const token = await EmailHandler.getRefreshTokenHotmail(
             currentRefreshToken,
             clientId,
         );
 
-        // Build xoauth2 string.
+        // Формируем xoauth2 строку.
         const base64Encoded = Buffer.from(
             [`user=${email}`, `auth=Bearer ${token}`, "", ""].join("\x01"),
             "utf-8",
         ).toString("base64");
 
-        // IMAP connection config.
+        // Настройки подключения IMAP.
         const imapConfig = {
             xoauth2: base64Encoded,
             host: host,
@@ -106,96 +106,90 @@ class EmailHandler {
 
         return new Promise((resolve, reject) => {
             const imap = new Imap(imapConfig);
-            let latestDate = timestamp; // We'll only consider messages newer than this.
+            let latestDate = timestamp; // Будем учитывать сообщения новее этого времени.
             let latestOtp = null;
 
+            // Если по истечении 4 минут OTP не найден, возвращаем ошибку.
+            setTimeout(() => {
+                imap.end();
+                reject(new Error('OTP can not be found'));
+            }, 120_000);
+
+            // Функция для обработки выборки сообщений с поиском OTP.
+            function processFetchedMessages(results, callback) {
+                if (!results || !results.length) {
+                    return callback();
+                }
+                const fetcher = imap.fetch(results, { bodies: "" });
+                fetcher.on("message", (msg, seqno) => {
+                    let buffer = "";
+                    msg.on("body", (stream) => {
+                        stream.on("data", (chunk) => {
+                            buffer += chunk.toString("utf8");
+                        });
+                        stream.once("end", () => {
+                            const header = Imap.parseHeader(buffer);
+                            // Проверяем дату сообщения – пропускаем, если оно старее указанного timestamp.
+                            const msgDate = new Date(header.date?.[0] || 0).getTime();
+                            if (!msgDate || msgDate < timestamp) return;
+                            // Ищем OTP с помощью регулярного выражения.
+                            const match = buffer.match(regex);
+                            if (match && msgDate > latestDate) {
+                                latestDate = msgDate;
+                                latestOtp = match[1];
+                                console.log(`Найден OTP [${latestOtp}] от ${header.date}`);
+                            }
+                        });
+                    });
+                    msg.once("error", (msgErr) => {
+                        console.error(`Ошибка при обработке сообщения ${seqno}:`, msgErr);
+                    });
+                });
+                fetcher.once("error", (fetchErr) => {
+                    console.error("Ошибка выборки:", fetchErr);
+                });
+                fetcher.once("end", callback);
+            }
+
             imap.once("ready", () => {
-                imap.getBoxes((err, boxes) => {
+                // Открываем маилбокс "Junk"
+                imap.openBox("Junk", true, (err, box) => {
                     if (err) {
                         imap.end();
                         return reject(err);
                     }
-
-                    // Gather top-level mailboxes into an array for iteration.
-                    const mailboxNames = Object.keys(boxes);
-
-                    const processMailbox = (names) => {
-                        // If no more mailboxes are left, finish up.
-                        if (names.length === 0) {
-                            imap.end();
-                            return latestOtp
-                                ? resolve(latestOtp)
-                                : reject(new Error("OTP not found"));
+                    // Ищем все существующие сообщения в Junk
+                    imap.search(["ALL"], (searchErr, results) => {
+                        if (searchErr) {
+                            console.error("Ошибка поиска в Junk:", searchErr);
                         }
-
-                        const mailbox = names.shift();
-
-                        imap.openBox(mailbox, true, (openErr, box) => {
-                            if (openErr) {
-                                console.error(`Error opening mailbox ${mailbox}:`, openErr);
-                                return processMailbox(names);
+                        processFetchedMessages(results, () => {
+                            if (latestOtp) {
+                                imap.end();
+                                return resolve(latestOtp);
                             }
+                            // Если OTP не найден в уже имеющихся письмах,
+                            // устанавливаем слушатель на событие прихода новых сообщений.
+                            console.log("OTP не найден в существующих сообщениях, ожидаем новые письма в папке Junk...");
 
-                            // Search for ALL messages in this mailbox.
-                            imap.search(["ALL"], (searchErr, results) => {
-                                if (searchErr) {
-                                    console.error(`Search error in mailbox ${mailbox}:`, searchErr);
-                                    return processMailbox(names);
-                                }
-
-                                if (!results || !results.length) {
-                                    return processMailbox(names);
-                                }
-
-                                // Fetch the full raw message.
-                                const fetcher = imap.fetch(results, { bodies: "" });
-
-                                fetcher.on("message", (msg, seqno) => {
-                                    let buffer = "";
-
-                                    msg.on("body", (stream) => {
-                                        stream.on("data", (chunk) => {
-                                            buffer += chunk.toString("utf8");
-                                        });
-
-                                        stream.once("end", () => {
-                                            const header = Imap.parseHeader(buffer);
-
-                                            // Check message date, skip if older than timestamp we want.
-                                            const msgDate = new Date(header.date?.[0] || 0).getTime();
-                                            if (!msgDate || msgDate < timestamp) return;
-
-                                            // Look for the OTP in the message text.
-                                            const match = buffer.match(
-                                                regex,
-                                            );
-                                            if (match && msgDate > latestDate) {
-                                                // If it's newer than our last OTP, save it.
-                                                latestDate = msgDate;
-                                                latestOtp = match[1];
-                                                console.log(`Found OTP [${latestOtp}] on ${header.date}`);
-                                            }
-                                        });
+                            imap.on("mail", (numNewMsgs) => {
+                                console.log(`Пришло ${numNewMsgs} новых сообщений в Junk.`);
+                                // Ищем только непрочитанные сообщения
+                                imap.search(["UNSEEN"], (newSearchErr, newResults) => {
+                                    if (newSearchErr) {
+                                        console.error("Ошибка поиска новых сообщений:", newSearchErr);
+                                        return;
+                                    }
+                                    processFetchedMessages(newResults, () => {
+                                        if (latestOtp) {
+                                            imap.end();
+                                            return resolve(latestOtp);
+                                        }
                                     });
-
-                                    msg.once("error", (msgErr) => {
-                                        console.error(`Error processing message ${seqno}:`, msgErr);
-                                    });
-                                });
-
-                                fetcher.once("error", (fetchErr) => {
-                                    console.error("Fetch error:", fetchErr);
-                                });
-
-                                // Once done fetching all messages in this mailbox, move on.
-                                fetcher.once("end", () => {
-                                    processMailbox(names);
                                 });
                             });
                         });
-                    };
-
-                    processMailbox(mailboxNames);
+                    });
                 });
             });
 
@@ -204,14 +198,14 @@ class EmailHandler {
             });
 
             imap.once("end", () => {
-                console.log("IMAP connection ended");
-                // If we never found an OTP, resolve with null; otherwise, we’ve already resolved.
+                console.log("IMAP-соединение закрыто");
                 if (!latestOtp) resolve(null);
             });
 
             imap.connect();
         });
     }
+
 }
 
 export default EmailHandler;

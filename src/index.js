@@ -15,14 +15,22 @@ import {
   getRandomInterval,
   generatePassword,
   getRandomElement,
-  delay,
+  delay, headersInterceptor,
 } from "./helper.js";
 import EmailHandler from "./email-handler.js";
 import {COUNTRIES, IS_SEQUENTIAL, MAX_DELAY, MIN_DELAY, ROTATING_PROXY, STICKY_PROXY} from "./config.js";
+import {HttpProxyAgent} from "http-proxy-agent";
 
 const countries = COUNTRIES.split(",");
 const minDelay = Math.floor(Number(MIN_DELAY ?? 1000) * 1000);
 const maxDelay = Math.floor(Number(MAX_DELAY ?? 10_000) * 1000);
+
+
+axios.interceptors.request.use(
+    headersInterceptor,
+    (error) => Promise.reject(error),
+);
+
 
 /**
  * Проверка прокси. Делаем простой запрос (например, к ipify).
@@ -40,10 +48,9 @@ async function getValidProxy(country) {
 
     console.log(proxyUrl)
     try {
-      const agent = new HttpsProxyAgent(proxyUrl);
       await axios.get("https://api.ipify.org?format=json", {
-        httpAgent: agent,
-        httpsAgent: agent,
+        httpsAgent: new HttpsProxyAgent(proxyUrl),
+        httpAgent: new HttpProxyAgent(proxyUrl),
         timeout: 10000,
       });
       // Если ошибок нет – прокси рабочая
@@ -99,7 +106,6 @@ async function stepRegisterAndVerify(accountData) {
     while (!accessToken && attempt < 6) {
       attempt++;
 
-      await delay(getRandomInterval(minDelay, maxDelay));
       accessToken = await registrationManager.registerAndVerify(
           email,
           password,
@@ -116,6 +122,11 @@ async function stepRegisterAndVerify(accountData) {
     return true;
   } catch (err) {
     console.error("Ошибка на шаге регистрации и верификации:", err.message);
+    accountData.proxyUrl = await getValidProxy(accountData.country);
+
+    if (!accountData.proxyUrl) {
+      console.error(`Не смогли подобрать прокси для ${accountData.email}`);
+    }
     return false;
   }
 }
@@ -232,8 +243,7 @@ async function stepFinalizeAccount(accountData) {
         Authorization: accessToken,
         "User-Agent": accountData.userAgent,
       },
-      timeout: 20000,
-      httpAgent: new HttpsProxyAgent(accountData.proxyUrl),
+      httpAgent: new HttpProxyAgent(accountData.proxyUrl),
       httpsAgent: new HttpsProxyAgent(accountData.proxyUrl),
     });
     const userId = res.data.result.data.userId;
@@ -287,13 +297,15 @@ async function processAccount(emailData, index) {
     accessToken: null,
     finalPassword: null,
     userId: null,
-    registrationManager: null
+    registrationManager: null,
+    // Флаг для рандомизации шагов 2-4, чтобы блок выполнился только один раз
+    randomized: false
   };
 
   accountData.proxyUrl = await getValidProxy(accountData.country);
 
-  if(!accountData.proxyUrl) {
-    console.error(`Не смогли подобрать прокси для ${email}`)
+  if (!accountData.proxyUrl) {
+    console.error(`Не смогли подобрать прокси для ${email}`);
     return;
   }
 
@@ -313,27 +325,67 @@ async function processAccount(emailData, index) {
         break;
       }
       case 1: {
+        accountData.registrationManager.proxy = accountData.proxyUrl;
         console.log(`Шаг 1: Регистрация и проверка OTP для ${accountData.email}`);
         stepDone = await stepRegisterAndVerify(accountData);
         if (stepDone) accountData.step = 2;
         break;
       }
+        // Объединяем шаги 2, 3 и 4 с рандомизацией порядка
       case 2: {
-        console.log(`Шаг 2: Привязка кошелька для ${accountData.email}`);
-        stepDone = await stepLinkWallet(accountData);
-        if (stepDone) accountData.step = 3;
-        break;
-      }
-      case 3: {
-        console.log(`Шаг 3: Подтверждение кошелька для ${accountData.email}`);
-        stepDone = await stepConfirmWallet(accountData);
-        if (stepDone) accountData.step = 4;
-        break;
-      }
-      case 4: {
-        console.log(`Шаг 4: Финальные операции (сброс пароля, получение userId) для ${accountData.email}`);
-        stepDone = await stepFinalizeAccount(accountData);
-        if (stepDone) accountData.step = 5;
+        if (!accountData.randomized) {
+          accountData.randomized = true;
+          if (Math.random() < 0.5) {
+            console.log(`Для ${accountData.email} выполняем: (Шаг 2 + Шаг 3) -> Шаг 4`);
+            // Выполнение шагов 2 и 3
+            const success2 = await stepLinkWallet(accountData);
+            if (!success2) {
+              console.error(`Шаг 2 не выполнен для ${accountData.email}`);
+              break;
+            }
+            await delay(getRandomInterval(minDelay, maxDelay));
+
+            const success3 = await stepConfirmWallet(accountData);
+            if (!success3) {
+              console.error(`Шаг 3 не выполнен для ${accountData.email}`);
+              break;
+            }
+            await delay(getRandomInterval(minDelay, maxDelay));
+
+            // Затем шаг 4
+            const success4 = await stepFinalizeAccount(accountData);
+            if (!success4) {
+              console.error(`Шаг 4 не выполнен для ${accountData.email}`);
+              break;
+            }
+          } else {
+            console.log(`Для ${accountData.email} выполняем: Шаг 4 -> (Шаг 2 + Шаг 3)`);
+            // Сначала шаг 4
+            const success4 = await stepFinalizeAccount(accountData);
+            if (!success4) {
+              console.error(`Шаг 4 не выполнен для ${accountData.email}`);
+              break;
+            }
+            await delay(getRandomInterval(minDelay, maxDelay));
+
+            // Затем шаги 2 и 3
+            const success2 = await stepLinkWallet(accountData);
+            if (!success2) {
+              console.error(`Шаг 2 не выполнен для ${accountData.email}`);
+              break;
+            }
+            await delay(getRandomInterval(minDelay, maxDelay));
+
+            const success3 = await stepConfirmWallet(accountData);
+            if (!success3) {
+              console.error(`Шаг 3 не выполнен для ${accountData.email}`);
+              break;
+            }
+          }
+          // После объединённых шагов сразу переходим к шагу 5
+          accountData.step = 5;
+          stepDone = true;
+        }
         break;
       }
       case 5: {
@@ -344,47 +396,42 @@ async function processAccount(emailData, index) {
             JSON.stringify({
               accessToken: accountData.accessToken,
               userId: accountData.userId,
-            }),
+            })
         );
 
         // Пишем в файл
-        const rotatingProxy = ROTATING_PROXY.replace(
-            "{COUNTRY}",
-            accountData.country,
-        );
-
+        const rotatingProxy = ROTATING_PROXY.replace("{COUNTRY}", accountData.country);
         const lineToAppend =
             ([
-              accountData.email,
-              accountData.password,
-              accountData.currentRefreshToken,
-              accountData.clientId,
-            ].join("|") +
-            "|" +
-            [
-              accountData.finalPassword,
-              accountData.proxyUrl,
-              accountData.accessToken,
-              accountData.userId,
-              accountData.userAgent,
-              accountData.privateKeyBase58,
-              accountData.publicKeyBase58,
-              rotatingProxy,
-            ].join("|")) +
+                  accountData.email,
+                  accountData.password,
+                  accountData.currentRefreshToken,
+                  accountData.clientId,
+                ].join("|") +
+                "|" +
+                [
+                  accountData.finalPassword,
+                  accountData.proxyUrl,
+                  accountData.accessToken,
+                  accountData.userId,
+                  accountData.userAgent,
+                  accountData.privateKeyBase58,
+                  accountData.publicKeyBase58,
+                  rotatingProxy,
+                ].join("|")) +
             "\n";
 
-        console.log(lineToAppend)
+        console.log(lineToAppend);
         await fs.appendFile("data/ready_accounts.txt", lineToAppend);
         accountData.step = 6; // Успешно закончили все шаги
+        stepDone = true;
         break;
       }
       default:
-        // Если step >= 6, выходим
         break;
     }
 
-    if(accountData.step === 6) break;
-
+    if (accountData.step === 6) break;
     if (!stepDone) {
       console.log(`Шаг ${accountData.step} неудачен, пробуем ещё раз...`);
       await delay(getRandomInterval(minDelay, maxDelay));
@@ -415,6 +462,7 @@ async function main() {
   }
 
   await Promise.all(promises);
+  process.exit(0);
 }
 
 main();

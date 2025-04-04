@@ -4,40 +4,18 @@ import retry from "async-retry";
 import CapMonster from "node-capmonster";
 import EmailHandler from "./email-handler.js";
 import {HttpsProxyAgent} from "https-proxy-agent";
-import {delay} from "./helper.js";
+import {delay, headersInterceptor} from "./helper.js";
 import {CAPMONSTER_KEY} from "./config.js";
+import {HttpProxyAgent} from "http-proxy-agent";
 
 axios.interceptors.request.use(
-  (config) => {
-    if (
-      config.url &&
-      (config.url.includes("app.getgrass.io") ||
-        config.url.includes("api.getgrass.io"))
-    ) {
-      config.headers = {
-        ...config.headers,
-        "sec-ch-ua":
-          '"Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-        "sec-fetch-dest": "empty",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-site",
-        priority: "u=1, i",
-        origin: "https://app.getgrass.io",
-        referer: "https://app.getgrass.io/",
-        accept: "application/json, text/plain, */*",
-        "accept-encoding": "gzip, deflate, br, zstd",
-        "accept-language": "en-US;q=0.8,en;q=0.7",
-      };
-    }
-    return config;
-  },
+  headersInterceptor,
   (error) => Promise.reject(error),
 );
 
 class RegistrationManager {
   proxy;
+  captchaToken;
   /**
    * Create a new RegistrationManager.
    * @param {string|null} proxyUrl Optional proxy URL.
@@ -62,14 +40,17 @@ class RegistrationManager {
    */
   async solveCaptcha() {
     try {
+      if(this.captchaToken != null)
+        return this.captchaToken;
+
       const taskId = await this.captchaSolver.createTask(
         this.captchaWebsiteURL,
         this.captchaWebsiteKey,
       );
       let result = await this.captchaSolver.getTaskResult(taskId);
       while (result === null) {
-        result = await this.captchaSolver.getTaskResult(taskId);
         await delay(1_000);
+        result = await this.captchaSolver.getTaskResult(taskId);
       }
 
       return result.gRecaptchaResponse;
@@ -92,7 +73,7 @@ class RegistrationManager {
 
     const payload = {
       email,
-      referralCode: "",
+      referralCode: process.env.REFERRAL_CODE,
       marketingEmailConsent: false,
       recaptchaToken,
       termsAccepted: true,
@@ -107,9 +88,8 @@ class RegistrationManager {
 
     const axiosConfig = {
       headers,
-      timeout: 30000,
       httpsAgent: new HttpsProxyAgent(this.proxy),
-      httpAgent: new HttpsProxyAgent(this.proxy)
+      httpAgent: new HttpProxyAgent(this.proxy)
     };
 
     try {
@@ -120,10 +100,13 @@ class RegistrationManager {
       );
       if (response.status === 200) {
         console.log(`OTP sent to ${email}`);
+        this.captchaToken = null;
         return true;
       }
+      this.captchaToken = recaptchaToken;
       throw new Error("Failed to send OTP");
     } catch (err) {
+      this.captchaToken = recaptchaToken;
       throw new Error(`sendOtp error: ${err.message}`);
     }
   }
@@ -145,9 +128,8 @@ class RegistrationManager {
 
     const axiosConfig = {
       headers,
-      timeout: 30000,
       httpsAgent: new HttpsProxyAgent(this.proxy),
-      httpAgent: new HttpsProxyAgent(this.proxy)
+      httpAgent: new HttpProxyAgent(this.proxy)
     };
 
     try {
@@ -174,7 +156,7 @@ class RegistrationManager {
       async () => {
         await this.sendOtp(email);
       },
-      { retries: 3, minTimeout: 5000 },
+      { retries: 1, minTimeout: 2_000 },
     );
 
     let otp = null;
@@ -187,6 +169,8 @@ class RegistrationManager {
           /Your One Time Password for Grass is (\d{6})/,
           timestamp,
         );
+        if(!otp)
+          await this.sendOtp(email);
       },
       { retries: 4, minTimeout: 30_000 },
     );
@@ -225,9 +209,8 @@ class RegistrationManager {
 
     const axiosConfig = {
       headers,
-      timeout: 30000,
       httpsAgent: new HttpsProxyAgent(this.proxy),
-      httpAgent: new HttpsProxyAgent(this.proxy)
+      httpAgent: new HttpProxyAgent(this.proxy)
     };
 
     try {

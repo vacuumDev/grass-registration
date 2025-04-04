@@ -3,6 +3,14 @@ import bs58 from "bs58";
 import nacl from "tweetnacl";
 import { TextEncoder } from "util";
 import {HttpsProxyAgent} from "https-proxy-agent";
+import {headersInterceptor} from "./helper.js";
+import {HttpProxyAgent} from "http-proxy-agent";
+
+axios.interceptors.request.use(
+    headersInterceptor,
+    (error) => Promise.reject(error),
+);
+
 
 export class GrassWalletLinker {
   userAgent;
@@ -78,9 +86,8 @@ Nonce: ${timestamp}`;
 
     const axiosConfig = {
       headers: this.headers,
-      timeout: 30000,
       httpsAgent: new HttpsProxyAgent(this.proxy),
-      httpAgent: new HttpsProxyAgent(this.proxy)
+      httpAgent: new HttpProxyAgent(this.proxy)
     };
 
     console.log(payload);

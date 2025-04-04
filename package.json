@@ -16,6 +16,7 @@
     "axios": "^1.8.3",
     "bs58": "^6.0.0",
     "dotenv": "^16.4.7",
+    "http-proxy-agent": "^7.0.2",
     "https-proxy-agent": "^7.0.6",
     "imap": "^0.8.19",
     "imapflow": "^1.0.184",

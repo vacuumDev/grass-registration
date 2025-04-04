@@ -67,7 +67,8 @@ export const headersInterceptor = (config) => {
     }
 
     const platform = getPlatformFromUserAgent(config.headers['User-Agent']);
-    const randomBrandVersion = Math.floor(Math.random() * 90) + 10; // от 10 до 99
+    const versions = [99, 8, 110];
+    const randomBrandVersion = versions[Math.floor(Math.random() * versions.length)];
 
     config.headers = {
       accept: "application/json, text/plain, */*",

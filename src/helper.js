@@ -67,8 +67,6 @@ export const headersInterceptor = (config) => {
     }
 
     const platform = getPlatformFromUserAgent(config.headers['User-Agent']);
-    const versions = [99, 8, 110];
-    const randomBrandVersion = versions[Math.floor(Math.random() * versions.length)];
 
     config.headers = {
       accept: "application/json, text/plain, */*",
@@ -80,7 +78,7 @@ export const headersInterceptor = (config) => {
       referer: "https://app.getgrass.io/",
       ...(isChrome && {
         "sec-ch-ua":
-            `"Chromium";v="${chromeVersion}", "Not:A-Brand";v="${randomBrandVersion}", "Google Chrome";v="${chromeVersion}"`,
+            `"Chromium";v="${chromeVersion}", "Not:A-Brand";v="${config.brandVersion}", "Google Chrome";v="${chromeVersion}"`,
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": `"${platform}"`,
       }),
@@ -92,5 +90,6 @@ export const headersInterceptor = (config) => {
 
   }
 
+  delete config.brandVersion;
   return config;
 };

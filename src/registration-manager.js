@@ -20,8 +20,9 @@ class RegistrationManager {
    * Create a new RegistrationManager.
    * @param {string|null} proxyUrl Optional proxy URL.
    * @param {string} userAgent Optional proxy URL.
+   * @param {string} brandVersion Optional proxy URL.
    */
-  constructor(proxyUrl, userAgent) {
+  constructor(proxyUrl, userAgent, brandVersion) {
     this.baseUrl = "https://api.getgrass.io";
     this.proxy = proxyUrl;
 
@@ -32,6 +33,7 @@ class RegistrationManager {
         CAPMONSTER_KEY,
     );
     this.userAgent = userAgent;
+    this.brandVersion = brandVersion;
   }
 
   /**
@@ -89,7 +91,8 @@ class RegistrationManager {
     const axiosConfig = {
       headers,
       httpsAgent: new HttpsProxyAgent(this.proxy),
-      httpAgent: new HttpProxyAgent(this.proxy)
+      httpAgent: new HttpProxyAgent(this.proxy),
+      brandVersion: this.brandVersion
     };
 
     try {
@@ -129,7 +132,8 @@ class RegistrationManager {
     const axiosConfig = {
       headers,
       httpsAgent: new HttpsProxyAgent(this.proxy),
-      httpAgent: new HttpProxyAgent(this.proxy)
+      httpAgent: new HttpProxyAgent(this.proxy),
+      brandVersion: this.brandVersion
     };
 
     try {
@@ -210,7 +214,8 @@ class RegistrationManager {
     const axiosConfig = {
       headers,
       httpsAgent: new HttpsProxyAgent(this.proxy),
-      httpAgent: new HttpProxyAgent(this.proxy)
+      httpAgent: new HttpProxyAgent(this.proxy),
+      brandVersion: this.brandVersion
     };
 
     try {

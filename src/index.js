@@ -25,6 +25,7 @@ const countries = COUNTRIES.split(",");
 const minDelay = Math.floor(Number(MIN_DELAY ?? 1000) * 1000);
 const maxDelay = Math.floor(Number(MAX_DELAY ?? 10_000) * 1000);
 
+const versions = [99, 8, 110];
 
 axios.interceptors.request.use(
     headersInterceptor,
@@ -83,6 +84,7 @@ async function stepInitAccount(accountData) {
     accountData.registrationManager = new RegistrationManager(
         accountData.proxyUrl,
         accountData.userAgent,
+        accountData.brandVersion
     );
 
     return true;
@@ -144,6 +146,7 @@ async function stepLinkWallet(accountData) {
         privateKeyBase58,
         accountData.proxyUrl,
         accountData.userAgent,
+        accountData.brandVersion
     );
 
     await delay(getRandomInterval(minDelay, maxDelay));
@@ -173,6 +176,7 @@ async function stepConfirmWallet(accountData) {
         accessToken,
         accountData.proxyUrl,
         accountData.userAgent,
+        accountData.brandVersion
     );
 
     let attempt = 0;
@@ -245,6 +249,7 @@ async function stepFinalizeAccount(accountData) {
       },
       httpAgent: new HttpProxyAgent(accountData.proxyUrl),
       httpsAgent: new HttpsProxyAgent(accountData.proxyUrl),
+      brandVersion: accountData.brandVersion
     });
     const userId = res.data.result.data.userId;
 
@@ -281,6 +286,7 @@ async function processAccount(emailData, index) {
   }
 
   country = country.toLowerCase();
+  const randomBrandVersion = versions[Math.floor(Math.random() * versions.length)];
 
   // Собираем все данные об аккаунте в единый объект
   let accountData = {
@@ -299,7 +305,8 @@ async function processAccount(emailData, index) {
     userId: null,
     registrationManager: null,
     // Флаг для рандомизации шагов 2-4, чтобы блок выполнился только один раз
-    randomized: false
+    randomized: false,
+    brandVersion: randomBrandVersion
   };
 
   accountData.proxyUrl = await getValidProxy(accountData.country);
@@ -418,6 +425,7 @@ async function processAccount(emailData, index) {
                   accountData.privateKeyBase58,
                   accountData.publicKeyBase58,
                   rotatingProxy,
+                  accountData.brandVersion
                 ].join("|")) +
             "\n";
 

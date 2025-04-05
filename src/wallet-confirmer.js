@@ -16,13 +16,15 @@ export class WalletConfirmer {
    * @param {string} accessToken
    * @param {string} proxy URL of the proxy server (if needed)
    * @param {string} userAgent URL of the proxy server (if needed)
+   * @param {string} brandVersion URL of the proxy server (if needed)
    */
-  constructor(email, accessToken, proxy, userAgent) {
+  constructor(email, accessToken, proxy, userAgent, brandVersion) {
     this.email = email;
     this.accessToken = accessToken;
     this.proxy = proxy;
     this.baseUrl = "https://api.getgrass.io";
     this.userAgent = userAgent;
+    this.brandVersion = brandVersion;
 
     this.headers = {
       authority: "api.getgrass.io",
@@ -45,7 +47,8 @@ export class WalletConfirmer {
     const axiosConfig = {
       headers: this.headers,
       httpsAgent: new HttpsProxyAgent(this.proxy),
-      httpAgent: new HttpProxyAgent(this.proxy)
+      httpAgent: new HttpProxyAgent(this.proxy),
+      brandVersion: this.brandVersion
     };
 
     try {
@@ -107,7 +110,8 @@ export class WalletConfirmer {
     const axiosConfig = {
       headers: headers,
       httpsAgent: new HttpsProxyAgent(this.proxy),
-      httpAgent: new HttpProxyAgent(this.proxy)
+      httpAgent: new HttpProxyAgent(this.proxy),
+      brandVersion: this.brandVersion
     };
 
     console.debug("=== Отправка запроса на подтверждение кошелька ===");

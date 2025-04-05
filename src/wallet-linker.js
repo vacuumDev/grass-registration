@@ -21,12 +21,13 @@ export class GrassWalletLinker {
    * @param {string} proxy URL прокси-сервера (если требуется)
    * @param {string} userAgent URL прокси-сервера (если требуется)
    */
-  constructor(accessToken, privateKey, proxy, userAgent) {
+  constructor(accessToken, privateKey, proxy, userAgent, brandVersion) {
     this.accessToken = accessToken;
     this.privateKey = privateKey;
     this.baseUrl = "https://api.getgrass.io";
     this.userAgent = userAgent;
     this.proxy = proxy;
+    this.brandVersion = brandVersion;
 
     this.headers = {
       authority: "api.getgrass.io",
@@ -87,7 +88,8 @@ Nonce: ${timestamp}`;
     const axiosConfig = {
       headers: this.headers,
       httpsAgent: new HttpsProxyAgent(this.proxy),
-      httpAgent: new HttpProxyAgent(this.proxy)
+      httpAgent: new HttpProxyAgent(this.proxy),
+      brandVersion: this.brandVersion
     };
 
     console.log(payload);

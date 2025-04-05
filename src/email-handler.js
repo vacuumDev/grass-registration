@@ -113,7 +113,7 @@ class EmailHandler {
             setTimeout(() => {
                 imap.end();
                 reject(new Error('OTP can not be found'));
-            }, 120_000);
+            }, 60_000);
 
             // Функция для обработки выборки сообщений с поиском OTP.
             function processFetchedMessages(results, callback) {

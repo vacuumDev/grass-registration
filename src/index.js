@@ -15,10 +15,10 @@ import {
   getRandomInterval,
   generatePassword,
   getRandomElement,
-  delay, headersInterceptor,
+  delay, headersInterceptor, getReadyCounts,
 } from "./helper.js";
 import EmailHandler from "./email-handler.js";
-import {COUNTRIES, IS_SEQUENTIAL, MAX_DELAY, MIN_DELAY, ROTATING_PROXY, STICKY_PROXY} from "./config.js";
+import {COUNTRIES, IS_SEQUENTIAL, MAX_DELAY, MIN_DELAY, ROTATING_PROXY, STICKY_PROXY, TARGET_COUNTS} from "./config.js";
 import {HttpProxyAgent} from "http-proxy-agent";
 
 const countries = COUNTRIES.split(",");
@@ -265,27 +265,12 @@ async function stepFinalizeAccount(accountData) {
 /**
  * Основная функция обработки одного аккаунта с использованием пошаговой логики.
  */
-async function processAccount(emailData, index) {
+async function processAccount(emailData, country) {
   if (!emailData.trim()) return;
 
   let [email, password, currentRefreshToken, clientId] = emailData.split(":");
 
-  // Проверяем, есть ли уже сессия
-  const existingSession = await RedisWorker.getSession(email);
-  if (existingSession) {
-    console.log(`Skipping ${email} — session already exists.`);
-    return;
-  }
 
-  // Выбираем страну
-  let country = null;
-  if (IS_SEQUENTIAL === "1") {
-    country = countries[index % countries.length];
-  } else {
-    country = getRandomElement(countries);
-  }
-
-  country = country.toLowerCase();
   const randomBrandVersion = versions[Math.floor(Math.random() * versions.length)];
 
   // Собираем все данные об аккаунте в единый объект
@@ -295,7 +280,7 @@ async function processAccount(emailData, index) {
     password,
     currentRefreshToken,
     clientId,
-    country,
+    country: country.toLowerCase(),
     proxyUrl: null,
     userAgent: null,
     privateKeyBase58: null,
@@ -446,30 +431,75 @@ async function processAccount(emailData, index) {
     }
   }
 
-  if (accountData.step < 6) {
-    console.log(`Превышено число попыток для ${accountData.email}. Сохраняем прогресс, переходим к следующему.`);
-  } else {
-    console.log(`Аккаунт ${accountData.email} успешно обработан.`);
-  }
+  return accountData.step === 6;
 }
 
 
 async function main() {
   await RedisWorker.init();
 
-  const emailsData = (await fs.readFile("data/emails.txt", "utf-8"))
+  const rawEmailsData = (await fs.readFile("data/emails.txt", "utf-8"))
       .split("\n")
       .filter((line) => line.trim() !== "");
 
+  // 2) фильтруем те, что уже есть в Redis
+  const emailsData = [];
+  for (const line of rawEmailsData) {
+    const [email] = line.split(":");
+    if (await RedisWorker.getSession(email)) {
+      console.log(`Пропускаем ${email} — сессия уже существует`);
+      continue;
+    }
+    emailsData.push(line);
+  }
+
+  const readyCounts = await getReadyCounts();
+
+  const needToRegister = {};
+  TARGET_COUNTS.forEach(([country, target]) => {
+    const stillNeed = target;
+    needToRegister[country] = stillNeed;
+  });
+
+  // строим очередь стран
+  const registrationQueue = [];
+  Object.entries(needToRegister).forEach(([country, count]) => {
+    for (let i = 0; i < count; i++) registrationQueue.push(country);
+  });
+
   const promises = [];
-  for (let i = 0; i < emailsData.length; i++) {
+  console.log(registrationQueue)
+  // вместо вашего старого цикла
+  for (let i = 0; i < registrationQueue.length; i++) {
+
+    const country = registrationQueue[i];
     const emailData = emailsData[i];
-    promises.push(processAccount(emailData, i));
-    // Между аккаунтами тоже делаем рандомную задержку
-    await delay(getRandomInterval(minDelay, maxDelay));
+
+    if(emailData) {
+      promises.push(processAccount(emailData, country));
+      await delay(getRandomInterval(minDelay, maxDelay));
+    }
   }
 
   await Promise.all(promises);
+  const successes = Object.fromEntries(TARGET_COUNTS.map(([c]) => [c, 0]));
+
+  promises.forEach((p, idx) => {
+    const country = registrationQueue[idx];
+    if (p.valueOf()) successes[country] += 1;   // fulfilled & true
+  });
+
+// вывод
+  console.log("\n===== Итоговая статистика =====");
+  TARGET_COUNTS.forEach(([country, target]) => {
+    const wasReady = readyCounts[country] ?? 0;
+    const need = target;
+    const ok = successes[country];
+    console.log(
+        `${country.toUpperCase()}: было ${wasReady}, надо было +${need}, ` +
+        `зарегали ${ok}/${need}`
+    );
+  });
   process.exit(0);
 }
 

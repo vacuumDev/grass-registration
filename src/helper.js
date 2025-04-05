@@ -1,5 +1,6 @@
 import * as crypto from "crypto";
-import axios from "axios";
+import fs from "fs/promises";
+import {TARGET_COUNTS} from "./config.js";
 
 export function getRandomElement(arr) {
   const randomIndex = Math.floor(Math.random() * arr.length);
@@ -93,3 +94,35 @@ export const headersInterceptor = (config) => {
   delete config.brandVersion;
   return config;
 };
+
+export async function getReadyCounts() {
+  const counts = Object.fromEntries(TARGET_COUNTS.map(([c]) => [c, 0]));
+  const COUNTRY_RE =
+      /(?:[-_=](?:country|region)[-_]|[-=])([a-z]{2})(?=[.\-_:]|$)/i;
+  try {
+    const data = await fs.readFile("data/ready_accounts.txt", "utf-8");
+    data
+        .split("\n")
+        .filter(Boolean)
+        .forEach((line) => {
+          // в конце строки с 05.04.25 будем хранить код страны,
+          // но поддержим и «старый» формат без него
+          const parts = line.trim().split("|");
+          const explicitCountry = parts.at(-1)?.toLowerCase();
+
+          let country = explicitCountry;
+          if (!country || country.length !== 2) {
+            const proxy = parts.at(-2) ?? "";
+            const m = proxy.match(COUNTRY_RE);
+            country = m ? m[1].toLowerCase() : null;
+          }
+
+          if (country && counts.hasOwnProperty(country)) {
+            counts[country] += 1;
+          }
+        });
+  } catch {
+  }
+
+  return counts;
+}

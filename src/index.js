@@ -18,10 +18,9 @@ import {
   delay, headersInterceptor, getReadyCounts,
 } from "./helper.js";
 import EmailHandler from "./email-handler.js";
-import {COUNTRIES, IS_SEQUENTIAL, MAX_DELAY, MIN_DELAY, ROTATING_PROXY, STICKY_PROXY, TARGET_COUNTS} from "./config.js";
+import {MAX_DELAY, MIN_DELAY, ROTATING_PROXY, STICKY_PROXY, TARGET_COUNTS} from "./config.js";
 import {HttpProxyAgent} from "http-proxy-agent";
 
-const countries = COUNTRIES.split(",");
 const minDelay = Math.floor(Number(MIN_DELAY ?? 1000) * 1000);
 const maxDelay = Math.floor(Number(MAX_DELAY ?? 10_000) * 1000);
 
